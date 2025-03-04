@@ -171,9 +171,15 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
   }
 }
 
- socket.on("forceTurnChange", ({ roomId }) => {
-    forceTurnChange(roomId);
-  });
+socket.on("forceTurnChange", (data) => {
+  if (!data || !data.roomId) {
+    console.error("forceTurnChange event received with missing or undefined roomId");
+    return;
+  }
+
+  const { roomId } = data;
+  forceTurnChange(roomId);
+});
 
 // Function to reset the turn timer
 function resetTurnTimer(roomId) {

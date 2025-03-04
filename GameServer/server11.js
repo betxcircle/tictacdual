@@ -274,7 +274,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   // } else {
   //   socket.emit('invalidMove', 'It\'s not your turn');
   // }
-        const winnerSymbol = checkWin(room.board);
+       const winnerSymbol = checkWin(room.board);
 if (winnerSymbol) {
   const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
   const loserPlayer = room.players.find(player => player.symbol !== winnerSymbol); // Find the loser
@@ -309,7 +309,7 @@ if (winnerSymbol) {
         // Save winner record
         const newWinner = new WinnerModel({
           roomId,
-          winnerName: winnerUserId,  // ✅ Corrected: Store the winner's name
+          winnerName: winnerUserId,  // ✅ Store the winner's ID correctly
           totalBet: totalBet,
         });
         await newWinner.save();
@@ -318,7 +318,7 @@ if (winnerSymbol) {
         // Save loser record
         const newLoser = new LoserModel({
           roomId,
-          loserName: loserUserId,  // ✅ Corrected: Store the loser's name
+          loserName: loserUserId,  // ✅ Store the loser's ID correctly
           totalBet: totalBet,
         });
         await newLoser.save();
@@ -346,12 +346,13 @@ if (winnerSymbol) {
 
   iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
 }
-         else {
-      socket.emit('invalidMove', 'Cell already occupied');
-    }
-  } else {
-    socket.emit('invalidMove', 'It\'s not your turn');
-  }
+else {
+  socket.emit('invalidMove', 'Cell already occupied');
+} 
+} else {
+  socket.emit('invalidMove', 'It\'s not your turn');
+}
+
 });
 
 

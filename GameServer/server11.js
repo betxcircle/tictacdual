@@ -2,6 +2,7 @@ const socketIOOO = require('socket.io');
 const OdinCircledbModel = require('../models/odincircledb');
 const BetModel = require('../models/BetModel');
 const WinnerModel = require('../models/WinnerModel');
+const LoserModel = require('../models/LoserModel');
 const BetCashModel = require('../models/BetCashModel');
 const Device = require('../models/Device');
 
@@ -215,15 +216,17 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
       const winnerSymbol = checkWin(room.board);
       if (winnerSymbol) {
         const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
+        const loserPlayer = room.players.find((player) => player.symbol !== winnerSymbol); // Find the loser
         if (winnerPlayer) {
           const winnerUserId = winnerPlayer.userId;
+          const loserUserId = loserPlayer.userId;
           const gameResult = `${winnerPlayer.name} (${winnerSymbol}) wins!`;
           
           // Access the totalBet from the room object
           const totalBet = room.totalBet;
 
           // Emit 'gameOver' event with winner, total bet, and winner user ID
-          iooo.to(roomId).emit('gameOver', { winnerSymbol, result: gameResult, totalBet, winnerUserId, winnerPlayer });
+          iooo.to(roomId).emit('gameOver', { winnerSymbol, result: gameResult, totalBet, winnerUserId, winnerPlayer, loserUserId, loserPlayer  });
 
           try {
             // Update the winner's balance in the database
@@ -241,10 +244,14 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
                 });
               await newWinner.save();
               console.log('Bet saved to database:', newWinner);
-              } catch (error) {
-              console.error('Error saving bet to database:', error.message);
-               }
-
+                   // Save loser record
+              const newLoser = new LoserModel({
+                roomId,
+                loserName: loserPlayer.name,
+                totalBet: totalBet,
+              });
+              await newLoser.save();
+              console.log('Loser saved to database:', newLoser);
             } else {
               console.error('Winner user not found');
             }
@@ -269,15 +276,18 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   }
 });
 
-          // Handle forced turn switch if a player takes too long
-  socket.on("forceTurnChange", ({ roomId }) => {
-    if (activeRooms[roomId]) {
-      console.log("Forcing turn change due to timeout...");
-      activeRooms[roomId].currentTurn = activeRooms[roomId].currentTurn === 0 ? 1 : 0;
 
-      iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentTurn);
-    }
-  });
+        // Handle forced turn switch if a player takes too long
+socket.on("forceTurnChange", ({ roomId }) => {
+  if (activeRooms[roomId]) {
+    console.log("Forcing turn change due to timeout...");
+    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
+
+    io.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
+  } else {
+    console.error(`Room ${roomId} not found for forceTurnChange`);
+  }
+});
 
 
 socket.on('placeBet', async ({ roomId, userId, playerNumber, playerName, betAmount }) => {

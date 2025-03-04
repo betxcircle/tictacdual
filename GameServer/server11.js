@@ -174,7 +174,6 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
  socket.on("forceTurnChange", ({ roomId }) => {
     forceTurnChange(roomId);
   });
-});
 
 // Function to reset the turn timer
 function resetTurnTimer(roomId) {

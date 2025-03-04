@@ -171,36 +171,34 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
   }
 }
 
-
- socket.on("forceTurnChange", (data = {}) => {
-  const { roomId } = data;
-
-  if (!roomId) {
-    console.error("forceTurnChange event received without roomId");
-    return;
-  }
-
-  if (activeRooms[roomId]) {
-    console.log("Forcing turn change due to timeout...");
-
-    // Switch turn
-    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
-
-    // Emit turn change
-    iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
-
-    // Restart the timeout for the new player
-    setTimeout(() => {
-      console.log(`Player ${activeRooms[roomId].currentPlayer} tookss too long again. Switching turn...`);
-      socket.emit("forceTurnChange", { roomId }); // Re-trigger turn switch
-    }, 5000);
-
-  } else {
-    console.error(`Room ${roomId} not found for forceTurnChange`);
-  }
+ socket.on("forceTurnChange", ({ roomId }) => {
+    forceTurnChange(roomId);
+  });
 });
 
+// Function to reset the turn timer
+function resetTurnTimer(roomId) {
+  if (turnTimers[roomId]) {
+    clearTimeout(turnTimers[roomId]); // Clear existing timer
+  }
 
+  turnTimers[roomId] = setTimeout(() => {
+    forceTurnChange(roomId);
+  }, 5000);
+}
+
+// Function to force a turn change if the player is idle
+function forceTurnChange(roomId) {
+  const room = activeRooms[roomId];
+  if (!room) return;
+
+  console.log(`Player took too long. Switching turn in room ${roomId}`);
+
+  room.currentPlayer = (room.currentPlayer + 1) % 2; // Switch turn
+  iooo.to(roomId).emit("turnChange", room.currentPlayer);
+
+  resetTurnTimer(roomId); // Start new timer for next player
+}
 
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   const room = activeRooms[roomId];
@@ -241,6 +239,9 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         playerName: currentPlayer.name
       });
 
+         // Reset turn timer for new player
+      resetTurnTimer(roomId);
+        
       const winnerSymbol = checkWin(room.board);
       if (winnerSymbol) {
         const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);

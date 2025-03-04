@@ -171,6 +171,24 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
   }
 }
 
+  socket.on("forceTurnChange", (data = {}) => {
+  const { roomId } = data;
+
+  if (!roomId) {
+    console.error("forceTurnChange event received without roomId");
+    return;
+  }
+
+  if (activeRooms[roomId]) {
+    console.log("Forcing turn change due to timeout...");
+    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
+    iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
+  } else {
+    console.error(`Room ${roomId} not found for forceTurnChange`);
+  }
+});
+
+
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   const room = activeRooms[roomId];
 
@@ -291,17 +309,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   }
 });
 
-        // Handle forced turn switch if a player takes too long
-socket.on("forceTurnChange", ({ roomId }) => {
-  if (activeRooms[roomId]) {
-    console.log("Forcing turn change due to timeout...");
-    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
 
-    iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
-  } else {
-    console.error(`Room ${roomId} not found for forceTurnChange`);
-  }
-});
 
               // Check for a win or draw
   //     const winnerSymbol = checkWin(room.board);

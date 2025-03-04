@@ -171,7 +171,8 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
   }
 }
 
-  socket.on("forceTurnChange", (data = {}) => {
+
+ socket.on("forceTurnChange", (data = {}) => {
   const { roomId } = data;
 
   if (!roomId) {
@@ -181,12 +182,24 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
 
   if (activeRooms[roomId]) {
     console.log("Forcing turn change due to timeout...");
+
+    // Switch turn
     activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
+
+    // Emit turn change
     iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
+
+    // Restart the timeout for the new player
+    setTimeout(() => {
+      console.log(`Player ${activeRooms[roomId].currentPlayer} took too long again. Switching turn...`);
+      socket.emit("forceTurnChange", { roomId }); // Re-trigger turn switch
+    }, 5000);
+
   } else {
     console.error(`Room ${roomId} not found for forceTurnChange`);
   }
 });
+
 
 
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {

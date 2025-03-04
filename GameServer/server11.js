@@ -269,6 +269,16 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   }
 });
 
+          // Handle forced turn switch if a player takes too long
+  socket.on("forceTurnChange", ({ roomId }) => {
+    if (activeRooms[roomId]) {
+      console.log("Forcing turn change due to timeout...");
+      activeRooms[roomId].currentTurn = activeRooms[roomId].currentTurn === 0 ? 1 : 0;
+
+      iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentTurn);
+    }
+  });
+
 
 socket.on('placeBet', async ({ roomId, userId, playerNumber, playerName, betAmount }) => {
   

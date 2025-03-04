@@ -301,8 +301,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
       } else {
         socket.emit('invalidMove', 'Cell already occupied');
             socket.emit('invalidMove', 'It\'s not your turn');
-      } 
-    }
+      }
 });
 
 

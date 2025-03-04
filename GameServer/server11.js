@@ -186,11 +186,9 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
     room.currentPlayer = 0; // Default to player 0
   }
 
-
   if (!room) {
     return socket.emit('invalidMove', 'Room not found');
   }
-
 
   const currentPlayerIndex = room.currentPlayer % 2;
   const currentPlayer = room.players[currentPlayerIndex];
@@ -212,7 +210,100 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         playerName: currentPlayer.name
       });
 
-      // Check for a win or draw
+      const winnerSymbol = checkWin(room.board);
+      if (winnerSymbol) {
+        const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
+        const loserPlayer = room.players.find(player => player.symbol !== winnerSymbol); // Find the loser
+      
+        if (winnerPlayer && loserPlayer) {
+          const winnerUserId = winnerPlayer.userId;
+          const loserUserId = loserPlayer.userId;
+          const gameResult = `${winnerPlayer.name} (${winnerSymbol}) wins!`;
+
+          // Access the totalBet from the room object
+          const totalBet = room.totalBet;
+
+          // Emit 'gameOver' event with winner and loser info
+          iooo.to(roomId).emit('gameOver', { 
+            winnerSymbol, 
+            result: gameResult, 
+            totalBet, 
+            winnerUserId, 
+            winnerPlayer, 
+            loserUserId, 
+            loserPlayer 
+          });
+
+          try {
+            // Update the winner's balance in the database
+            const winnerUser = await OdinCircledbModel.findById(winnerUserId);
+            if (winnerUser) {
+              // Add total bet amount to winner's balance
+              winnerUser.wallet.cashoutbalance += totalBet;
+              await winnerUser.save();
+
+              // Save winner record
+              const newWinner = new WinnerModel({
+                roomId,
+                winnerName: winnerUserId,
+                totalBet: totalBet,
+              });
+              await newWinner.save();
+              console.log('Winner saved to database:', newWinner);
+
+              // Save loser record
+              const newLoser = new LoserModel({
+                roomId,
+                loserName: loserUserId,
+                totalBet: totalBet,
+              });
+              await newLoser.save();
+              console.log('Loser saved to database:', newLoser);
+            } else {
+              console.error('Winner user not found');
+            }
+          } catch (error) {
+            console.error('Error updating winner balance:', error);
+          }
+        }
+      } else if (room.board.every((cell) => cell !== null)) {
+        // It's a draw
+        iooo.to(roomId).emit('gameDraw', { 
+          winnerSymbol: null, 
+          result: "It's a draw!", 
+          winnerUserId: null 
+        });
+
+        // Reset the game state for a new game
+        room.board = Array(9).fill(null);
+        room.startingPlayer = (room.startingPlayer + 1) % 2;
+        room.currentPlayer = room.startingPlayer;
+
+        iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
+      } else {
+        socket.emit('invalidMove', 'Cell already occupied');
+      } 
+    } else {
+      socket.emit('invalidMove', 'Cell already occupied');
+    }
+  } else {
+    socket.emit('invalidMove', 'It\'s not your turn');
+  }
+});
+
+        // Handle forced turn switch if a player takes too long
+socket.on("forceTurnChange", ({ roomId }) => {
+  if (activeRooms[roomId]) {
+    console.log("Forcing turn change due to timeout...");
+    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
+
+    iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
+  } else {
+    console.error(`Room ${roomId} not found for forceTurnChange`);
+  }
+});
+
+              // Check for a win or draw
   //     const winnerSymbol = checkWin(room.board);
   //     if (winnerSymbol) {
   //       const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
@@ -274,100 +365,6 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   // } else {
   //   socket.emit('invalidMove', 'It\'s not your turn');
   // }
-       const winnerSymbol = checkWin(room.board);
-if (winnerSymbol) {
-  const winnerPlayer = room.players.find(player => player.symbol === winnerSymbol);
-  const loserPlayer = room.players.find(player => player.symbol !== winnerSymbol); // Find the loser
-  
-  if (winnerPlayer && loserPlayer) {
-    const winnerUserId = winnerPlayer.userId;
-    const loserUserId = loserPlayer.userId;
-    const gameResult = `${winnerPlayer.name} (${winnerSymbol}) wins!`;
-
-    // Access the totalBet from the room object
-    const totalBet = room.totalBet;
-
-    // Emit 'gameOver' event with winner and loser info
-    iooo.to(roomId).emit('gameOver', { 
-      winnerSymbol, 
-      result: gameResult, 
-      totalBet, 
-      winnerUserId, 
-      winnerPlayer, 
-      loserUserId, 
-      loserPlayer 
-    });
-
-    try {
-      // Update the winner's balance in the database
-      const winnerUser = await OdinCircledbModel.findById(winnerUserId);
-      if (winnerUser) {
-        // Add total bet amount to winner's balance
-        winnerUser.wallet.cashoutbalance += totalBet;
-        await winnerUser.save();
-
-        // Save winner record
-        const newWinner = new WinnerModel({
-          roomId,
-          winnerName: winnerUserId,  // ✅ Store the winner's ID correctly
-          totalBet: totalBet,
-        });
-        await newWinner.save();
-        console.log('Winner saved to database:', newWinner);
-
-        // Save loser record
-        const newLoser = new LoserModel({
-          roomId,
-          loserName: loserUserId,  // ✅ Store the loser's ID correctly
-          totalBet: totalBet,
-        });
-        await newLoser.save();
-        console.log('Loser saved to database:', newLoser);
-
-      } else {
-        console.error('Winner user not found');
-      }
-    } catch (error) {
-      console.error('Error updating winner balance:', error);
-    }
-  }
-} else if (room.board.every((cell) => cell !== null)) {
-  // It's a draw
-  iooo.to(roomId).emit('gameDraw', { 
-    winnerSymbol: null, 
-    result: "It's a draw!", 
-    winnerUserId: null 
-  });
-
-  // Reset the game state for a new game
-  room.board = Array(9).fill(null);
-  room.startingPlayer = (room.startingPlayer + 1) % 2;
-  room.currentPlayer = room.startingPlayer;
-
-  iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
-}
-else {
-  socket.emit('invalidMove', 'Cell already occupied');
-} 
-} else {
-  socket.emit('invalidMove', 'It\'s not your turn');
-}
-
-});
-
-
-        // Handle forced turn switch if a player takes too long
-socket.on("forceTurnChange", ({ roomId }) => {
-  if (activeRooms[roomId]) {
-    console.log("Forcing turn change due to timeout...");
-    activeRooms[roomId].currentPlayer = (activeRooms[roomId].currentPlayer + 1) % 2;
-
-    iooo.to(roomId).emit("turnChange", activeRooms[roomId].currentPlayer);
-  } else {
-    console.error(`Room ${roomId} not found for forceTurnChange`);
-  }
-});
-
 
 socket.on('placeBet', async ({ roomId, userId, playerNumber, playerName, betAmount }) => {
   

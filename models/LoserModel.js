@@ -5,7 +5,7 @@ const LoserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    LoserName: {
+    loserName: {
         type: String,
         required: true,
     },

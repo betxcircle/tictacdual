@@ -300,13 +300,9 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
       } else {
         socket.emit('invalidMove', 'Cell already occupied');
+            socket.emit('invalidMove', 'It\'s not your turn');
       } 
-    } else {
-      socket.emit('invalidMove', 'Cell already occupied');
     }
-  } else {
-    socket.emit('invalidMove', 'It\'s not your turn');
-  }
 });
 
 

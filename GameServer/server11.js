@@ -237,8 +237,8 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
       room.board[index] = currentPlayer.symbol;
       room.currentPlayer++;
 
-      io.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      io.to(roomId).emit('moveMade', {
+      iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+      iooo.to(roomId).emit('moveMade', {
         index,
         symbol: currentPlayer.symbol,
         playerName: currentPlayer.name
@@ -261,7 +261,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
           const totalBet = room.totalBet;
 
           // Emit 'gameOver' event with winner and loser info
-          io.to(roomId).emit('gameOver', { 
+          iooo.to(roomId).emit('gameOver', { 
             winnerSymbol, 
             result: gameResult, 
             totalBet, 
@@ -305,7 +305,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         }
       } else if (room.board.every((cell) => cell !== null)) {
         // It's a draw
-        io.to(roomId).emit('gameDraw', { 
+        iooo.to(roomId).emit('gameDraw', { 
           winnerSymbol: null, 
           result: "It's a draw!", 
           winnerUserId: null 
@@ -316,7 +316,7 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         room.startingPlayer = (room.startingPlayer + 1) % 2;
         room.currentPlayer = room.startingPlayer;
 
-        io.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
+        iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
       }
     } else {
       return socket.emit('invalidMove', room.board[index] !== null ? 'Cell already occupied' : "It's not your turn");

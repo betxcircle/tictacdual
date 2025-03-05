@@ -320,6 +320,27 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
 //     }
 //   }
 // });
+  const startTurnTimer = (roomId) => {
+  const room = activeRooms[roomId];
+
+  if (!room) return;
+
+  if (room.turnTimeout) {
+    clearTimeout(room.turnTimeout); // Clear any existing timeout
+  }
+
+  // Set a new timeout
+  room.turnTimeout = setTimeout(() => {
+    console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
+    
+    room.currentPlayer = (room.currentPlayer + 1) % 2; // Switch turn
+    iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+
+    // Restart the timer for the next player
+    startTurnTimer(roomId);
+  }, 5000);
+};
+        
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   const room = activeRooms[roomId];
 
@@ -362,13 +383,14 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
       // Change turn
       room.currentPlayer = (room.currentPlayer + 1) % 2;
       iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+     startTurnTimer(roomId); // Restart timer for next player
 
       // Start the turn timeout for the next player
-      room.turnTimeout = setTimeout(() => {
-        console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
-        room.currentPlayer = (room.currentPlayer + 1) % 2;
-        iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      }, 5000);
+      // room.turnTimeout = setTimeout(() => {
+      //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
+      //   room.currentPlayer = (room.currentPlayer + 1) % 2;
+      //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+      // }, 5000);
   
       // **Step 2: Start a new 5-second timer for forced turn change**
       // room.turnTimeout = setTimeout(() => {

@@ -350,26 +350,32 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
   if (socket.id === currentPlayer.socketId) {
     if (room.board[index] === null) {
       room.board[index] = currentPlayer.symbol;
-      room.currentPlayer++;
-
-      iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      iooo.to(roomId).emit('moveMade', {
-        index,
-        symbol: currentPlayer.symbol,
-        playerName: currentPlayer.name
-      });
-
-      // **Step 1: Clear previous turn timer (if any)**
+      
+      // Move is made, clear the existing turn timeout
       if (room.turnTimeout) {
         clearTimeout(room.turnTimeout);
       }
 
-      // **Step 2: Start a new 5-second timer for forced turn change**
+      // Emit move made and turn change
+      iooo.to(roomId).emit('moveMade', { index, symbol: currentPlayer.symbol, playerName: currentPlayer.name });
+
+      // Change turn
+      room.currentPlayer = (room.currentPlayer + 1) % 2;
+      iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+
+      // Start the turn timeout for the next player
       room.turnTimeout = setTimeout(() => {
         console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
         room.currentPlayer = (room.currentPlayer + 1) % 2;
         iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
       }, 5000);
+  
+      // **Step 2: Start a new 5-second timer for forced turn change**
+      // room.turnTimeout = setTimeout(() => {
+      //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
+      //   room.currentPlayer = (room.currentPlayer + 1) % 2;
+      //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
+      // // }, 5000);
 
       const winnerSymbol = checkWin(room.board);
       if (winnerSymbol) {

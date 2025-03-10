@@ -701,7 +701,6 @@ socket.on('sendMessage', ({ roomId, playerName, message }) => {
 });
 
 
-
 socket.on('disconnect', async () => {
   console.log('User disconnected');
 
@@ -718,10 +717,11 @@ socket.on('disconnect', async () => {
     room.players = room.players.filter(player => player.socketId !== socket.id); // Remove the disconnected player
 
     if (room.players.length === 0) {
-      // No players left, delete the room
+      // If no players are left, delete the room
       delete activeRooms[roomId];
 
       try {
+        // Delete the room from the database
         const result = await BetModel.deleteOne({ roomId });
         if (result.deletedCount > 0) {
           console.log(`Room ${roomId} successfully deleted from the database.`);
@@ -732,34 +732,42 @@ socket.on('disconnect', async () => {
         console.error(`Error deleting room ${roomId} from the database:`, err);
       }
     } else if (room.players.length === 1) {
-      // Declare the remaining player as the winner
-      const remainingPlayer = room.players[0];
+      // Check if the game has already ended
+      const gameAlreadyEnded = room.winnerDeclared || room.board.every(cell => cell !== null);
 
-      iooo.to(roomId).emit('gameOver', { 
-        winnerSymbol: remainingPlayer.symbol, 
-        result: `${remainingPlayer.name} wins by default!` 
-      });
+      if (!gameAlreadyEnded) {
+        // Declare the remaining player as the winner
+        const remainingPlayer = room.players[0];
 
-      if (room.totalBet) {
-        try {
-          const winnerUser = await OdinCircledbModel.findById(remainingPlayer.userId);
-          if (winnerUser) {
-            winnerUser.wallet.cashoutbalance += room.totalBet;
-            await winnerUser.save();
-            console.log(`${remainingPlayer.name} has been credited with ${room.totalBet}`);
+        io.to(roomId).emit('gameOver', { 
+          winnerSymbol: remainingPlayer.symbol, 
+          result: `${remainingPlayer.name} wins by default!` 
+        });
+
+        if (room.totalBet) {
+          try {
+            const winnerUser = await OdinCircledbModel.findById(remainingPlayer.userId);
+            if (winnerUser) {
+              winnerUser.wallet.cashoutbalance += room.totalBet;
+              await winnerUser.save();
+              console.log(`${remainingPlayer.name} has been credited with ${room.totalBet}`);
+            }
+          } catch (error) {
+            console.error("Error updating winner's balance:", error);
           }
-        } catch (error) {
-          console.error("Error updating winner's balance:", error);
         }
+      } else {
+        console.log("Game already ended. No winner declared.");
       }
 
-      // Optionally, delete the room after declaring the winner
+      // Optionally, delete the room after handling the disconnect
       delete activeRooms[roomId];
     } else {
       console.log(`Remaining players in room ${roomId}:`, room.players);
     }
   }
 });
+
 
 
 

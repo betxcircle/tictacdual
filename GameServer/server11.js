@@ -338,7 +338,7 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
 
     // Restart the timer for the next player
     startTurnTimer(roomId);
-  }, 5000);
+  }, 3000);
 };
         
 socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
@@ -390,14 +390,14 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
       //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
       //   room.currentPlayer = (room.currentPlayer + 1) % 2;
       //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      // }, 5000);
+      // }, 3000);
   
       // **Step 2: Start a new 5-second timer for forced turn change**
       // room.turnTimeout = setTimeout(() => {
       //   console.log(`Player took too long. Auto-switching turn for room ${roomId}`);
       //   room.currentPlayer = (room.currentPlayer + 1) % 2;
       //   iooo.to(roomId).emit('turnChange', room.currentPlayer % 2);
-      // // }, 5000);
+      // // }, 3000);
 
       const winnerSymbol = checkWin(room.board);
       if (winnerSymbol) {

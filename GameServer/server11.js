@@ -708,7 +708,6 @@ socket.on('disconnect', async () => {
   // Find the room where the player has disconnected
   const roomId = Object.keys(activeRooms).find(roomId => {
     const room = activeRooms[roomId];
-    // Safeguard: Ensure the room exists and has a players array
     return room && Array.isArray(room.players) && room.players.some(player => player.socketId === socket.id);
   });
 
@@ -719,11 +718,10 @@ socket.on('disconnect', async () => {
     room.players = room.players.filter(player => player.socketId !== socket.id); // Remove the disconnected player
 
     if (room.players.length === 0) {
-      // If no players are left, delete the room
+      // No players left, delete the room
       delete activeRooms[roomId];
 
       try {
-        // Delete the room from the database
         const result = await BetModel.deleteOne({ roomId });
         if (result.deletedCount > 0) {
           console.log(`Room ${roomId} successfully deleted from the database.`);
@@ -733,11 +731,36 @@ socket.on('disconnect', async () => {
       } catch (err) {
         console.error(`Error deleting room ${roomId} from the database:`, err);
       }
+    } else if (room.players.length === 1) {
+      // Declare the remaining player as the winner
+      const remainingPlayer = room.players[0];
+
+      iooo.to(roomId).emit('gameOver', { 
+        winnerSymbol: remainingPlayer.symbol, 
+        result: `${remainingPlayer.name} wins by default!` 
+      });
+
+      if (room.totalBet) {
+        try {
+          const winnerUser = await OdinCircledbModel.findById(remainingPlayer.userId);
+          if (winnerUser) {
+            winnerUser.wallet.cashoutbalance += room.totalBet;
+            await winnerUser.save();
+            console.log(`${remainingPlayer.name} has been credited with ${room.totalBet}`);
+          }
+        } catch (error) {
+          console.error("Error updating winner's balance:", error);
+        }
+      }
+
+      // Optionally, delete the room after declaring the winner
+      delete activeRooms[roomId];
     } else {
       console.log(`Remaining players in room ${roomId}:`, room.players);
     }
   }
 });
+
 
 
 

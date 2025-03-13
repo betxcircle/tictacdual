@@ -471,7 +471,10 @@ socket.on('makeMove', async ({ roomId, index, playerName, symbol }) => {
         room.startingPlayer = (room.startingPlayer + 1) % 2;
         room.currentPlayer = room.startingPlayer;
 
-        iooo.to(roomId).emit('newGame', { message: "The game has been reset due to a draw. New game starting!" });
+        iooo.to(roomId).emit('newGame', 
+                             { message: "The game has been reset due to a draw. New game starting!",
+                              startingPlayer: room.startingPlayer 
+                             });
       }
     } else {
       return socket.emit('invalidMove', room.board[index] !== null ? 'Cell already occupied' : "It's not your turn");
